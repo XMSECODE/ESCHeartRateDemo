@@ -39,8 +39,8 @@
 -(void)initCapureSession{
     //创建AVCaptureDevice的视频设备对象
     AVCaptureDevice* videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    
-    NSError* error;
+    NSError *error = nil;
+  
     //创建视频输入端对象
     AVCaptureDeviceInput* input = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&error];
     if (error) {

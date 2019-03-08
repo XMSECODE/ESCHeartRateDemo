@@ -14,9 +14,6 @@
 #import "Tool/ESCColorTool.h"
 #import "ESCCameraTool.h"
 
-static double T = 10;
-// 是否是停顿状态
-static bool is_wait = NO;
 
 @interface ViewController () <AVCaptureVideoDataOutputSampleBufferDelegate>
 
@@ -31,12 +28,18 @@ static bool is_wait = NO;
 
 @property(nonatomic,strong)NSMutableArray* points;
 
+@property(nonatomic,assign)BOOL isWait;
+
+@property(nonatomic,assign)int T;
+
 @end
 
 @implementation ViewController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    
+    self.T = 30;
     
     self.startButton.backgroundColor = [UIColor greenColor];
     self.startButton.layer.cornerRadius = 50;
@@ -70,8 +73,6 @@ static bool is_wait = NO;
 
 #pragma mark - AVCaptureVideoDataOutputSampleBufferDelegate
 - (void)captureOutput:(AVCaptureOutput *)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
-//    NSLog(@"did get %@",output);
-    
     /** 读取图像Buffer */
     CVPixelBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     CVPixelBufferLockBaseAddress(imageBuffer, 0);
@@ -104,16 +105,16 @@ static bool is_wait = NO;
 //    NSLog(@"%lf==",H);
     H = HeartRate(H);
 //    NSLog(@"%lf",H);
-    if (is_wait == YES) {
+    if (self.isWait == YES) {
         return;
     }
     if (H >= 1.0 || H <= -1.0 ) {
         count = 0;
         lastH = 0;
         [self.points removeAllObjects];
-        is_wait = YES;
+        self.isWait = YES;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            is_wait = NO;
+            self.isWait = NO;
         });
         return;
         
@@ -143,17 +144,15 @@ float HeartRate (float h) {
 - (void)analysisPointsWith:(NSDictionary *)point {
     
     [self.points addObject:point];
-    if (self.points.count <= 30){
+    if (self.points.count <= self.T * 3){
         return;
     }
     int count = (int)self.points.count;
     
     if (self.points.count % 10 == 0) {
-        
         int d_i_c = 0;          //最低峰值的位置 姑且算在中间位置 c->center
         int d_i_l = 0;          //最低峰值左面的最低峰值位置 l->left
         int d_i_r = 0;          //最低峰值右面的最低峰值位置 r->right
-        
         
         float trough_c = 0;     //最低峰值的浮点值
         float trough_l = 0;     //最低峰值左面的最低峰值浮点值
@@ -167,25 +166,23 @@ float HeartRate (float h) {
                 d_i_c = i;
             }
         }
-        
         // 2.找到最低峰值以后  以最低峰值为中心 找到前0.5-1.5周期中的最低峰值  和后0.5-1.5周期的最低峰值
-        
-        if (d_i_c >= 1.5 * T) {
+        if (d_i_c >= 1.5 * self.T) {
             
             // a.如果最低峰值处在中心位置， 即距离前后都至少有1.5个周期
-            if (d_i_c <= count-1.5*T) {
+            if (d_i_c <= count - 1.5 * self.T) {
                 // 左面最低峰值
-                for (int j = d_i_c - 0.5*T; j > d_i_c - 1.5*T; j--) {
+                for (int j = d_i_c - 0.5 * self.T; j > d_i_c - 1.5 * self.T; j--) {
                     float trough = [[[self.points[j] allObjects] firstObject] floatValue];
-                    if (trough < trough_l) {
+                    if (( trough < trough_l ) && ( d_i_c-j ) <= self.T) {
                         trough_l = trough;
                         d_i_l = j;
                     }
                 }
                 // 右面最低峰值
-                for (int k = d_i_c + 0.5*T; k < d_i_c + 1.5*T; k++) {
+                for (int k = d_i_c + 0.5 * self.T; k < d_i_c + 1.5 * self.T; k++) {
                     float trough = [[[self.points[k] allObjects] firstObject] floatValue];
-                    if (trough < trough_r) {
+                    if ((trough < trough_r) && (k-d_i_c <= self.T)) {
                         trough_r = trough;
                         d_i_r = k;
                     }
@@ -195,19 +192,19 @@ float HeartRate (float h) {
             // b.如果最低峰值右面不够1.5个周期 分两种情况 不够0.5个周期和够0.5个周期
             else {
                 // b.1 够0.5个周期
-                if (d_i_c <count-0.5*T) {
+                if (d_i_c < count - 0.5 * self.T) {
                     // 左面最低峰值
-                    for (int j = d_i_c - 0.5*T; j > d_i_c - 1.5*T; j--) {
+                    for (int j = d_i_c - 0.5 * self.T; j > d_i_c - 1.5 * self.T; j--) {
                         float trough = [[[self.points[j] allObjects] firstObject] floatValue];
-                        if (trough < trough_l) {
+                        if ((trough < trough_l) && (d_i_c-j) <= self.T) {
                             trough_l = trough;
                             d_i_l = j;
                         }
                     }
                     // 右面最低峰值
-                    for (int k = d_i_c + 0.5*T; k < count; k++) {
+                    for (int k = d_i_c + 0.5 * self.T; k < count; k++) {
                         float trough = [[[self.points[k] allObjects] firstObject] floatValue];
-                        if (trough < trough_r) {
+                        if ((trough < trough_r) && (k-d_i_c <= self.T)) {
                             trough_r = trough;
                             d_i_r = k;
                         }
@@ -216,9 +213,9 @@ float HeartRate (float h) {
                 // b.2 不够0.5个周期
                 else {
                     // 左面最低峰值
-                    for (int j = d_i_c - 0.5*T; j > d_i_c - 1.5*T; j--) {
+                    for (int j = d_i_c - 0.5 * self.T; j > d_i_c - 1.5 * self.T; j--) {
                         float trough = [[[self.points[j] allObjects] firstObject] floatValue];
-                        if (trough < trough_l) {
+                        if ((trough < trough_l) && (d_i_c-j) <= self.T) {
                             trough_l = trough;
                             d_i_l = j;
                         }
@@ -230,19 +227,19 @@ float HeartRate (float h) {
         // c. 如果左面不够1.5个周期 一样分两种情况  够0.5个周期 不够0.5个周期
         else {
             // c.1 够0.5个周期
-            if (d_i_c>0.5*T) {
+            if (d_i_c > 0.5 * self.T) {
                 // 左面最低峰值
-                for (int j = d_i_c - 0.5*T; j > 0; j--) {
+                for (int j = d_i_c - 0.5 * self.T; j > 0; j--) {
                     float trough = [[[self.points[j] allObjects] firstObject] floatValue];
-                    if (trough < trough_l) {
+                    if ((trough < trough_l) && (d_i_c-j) <= self.T) {
                         trough_l = trough;
                         d_i_l = j;
                     }
                 }
                 // 右面最低峰值
-                for (int k = d_i_c + 0.5*T; k < d_i_c + 1.5*T; k++) {
+                for (int k = d_i_c + 0.5 * self.T; k < d_i_c + 1.5 * self.T; k++) {
                     float trough = [[[self.points[k] allObjects] firstObject] floatValue];
-                    if (trough < trough_r) {
+                    if ((trough < trough_r) && (k - d_i_c) <= self.T) {
                         trough_r = trough;
                         d_i_r = k;
                     }
@@ -252,9 +249,9 @@ float HeartRate (float h) {
             // c.2 不够0.5个周期
             else {
                 // 右面最低峰值
-                for (int k = d_i_c + 0.5*T; k < d_i_c + 1.5*T; k++) {
+                for (int k = d_i_c + 0.5 * self.T; k < d_i_c + 1.5*self.T; k++) {
                     float trough = [[[self.points[k] allObjects] firstObject] floatValue];
-                    if (trough < trough_r) {
+                    if ((trough < trough_r) && (k-d_i_c <= self.T)) {
                         trough_r = trough;
                         d_i_r = k;
                     }
@@ -265,7 +262,7 @@ float HeartRate (float h) {
         
         // 3. 确定哪一个与最低峰值更接近 用最接近的一个最低峰值测出瞬时心率 60*1000两个峰值的时间差
         if (trough_l-trough_c < trough_r-trough_c) {
-
+            
             NSDictionary *point_c = self.points[d_i_c];
             NSDictionary *point_l = self.points[d_i_l];
             double t_c = [[[point_c allKeys] firstObject] doubleValue];
@@ -284,6 +281,7 @@ float HeartRate (float h) {
                 self.perMLabel.text = [NSString stringWithFormat:@"%ld次/分钟",fre];
             });
         }
+        
         // 4.删除过期数据
         for (int i = 0; i< 10; i++) {
             [self.points removeObjectAtIndex:0];

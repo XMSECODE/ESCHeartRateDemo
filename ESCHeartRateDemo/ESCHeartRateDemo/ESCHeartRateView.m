@@ -21,13 +21,13 @@
 - (void)drawRect:(CGRect)rect {
     CGFloat height = rect.size.height;
     CGFloat width = rect.size.width;
-    int step = 3;
+    int step = 2;
     if (self.index >= width / step) {
         [[UIColor greenColor] setStroke];
         UIBezierPath *path = [UIBezierPath bezierPath];
         for (int i = self.index - width / step; i < self.index; i++) {
             CGFloat value = *(_arr + i);
-            CGFloat y = height / 2 + value * height / 2;
+            CGFloat y = height / 2 - value * height / 2;
             if (i == (int)(self.index - width / step)) {
                 [path moveToPoint:CGPointMake(0, y)];
             }else {
@@ -41,7 +41,7 @@
         UIBezierPath *path = [UIBezierPath bezierPath];
         for (int i = 0; i < self.index; i++) {
             CGFloat value = *(_arr + i);
-            CGFloat y = height / 2 + value * height / 2;
+            CGFloat y = height / 2 - value * height / 2;
             if (i == 0) {
                 [path moveToPoint:CGPointMake(0, y)];
             }else {
