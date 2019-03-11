@@ -16,6 +16,8 @@
 
 @property(nonatomic,strong)dispatch_queue_t videoDataOutputQueue;
 
+@property(nonatomic,strong)AVCaptureDevice* captureDevice;
+
 @end
 
 @implementation ESCCameraTool
@@ -30,17 +32,40 @@
 
 - (void)start {
     [self.captureSession startRunning];
+    [self setTorchSwitch:YES];
 }
 
 - (void)stop {
     [self.captureSession stopRunning];
+    [self setTorchSwitch:NO];
+}
+
+- (void)setTorchSwitch:(BOOL)torchSwitch {
+    if ([self.captureDevice hasTorch] == NO || [self.captureDevice isTorchAvailable] == NO) {
+        NSLog(@"没有闪光灯");
+        return;
+    }
+    
+    NSError *error = nil;
+    if ([self.captureDevice lockForConfiguration:&error] == NO) {
+        NSLog(@"修改失败==%@",error);
+        return;
+    }
+    if (torchSwitch == YES && [self.captureDevice isTorchModeSupported:AVCaptureTorchModeOn]) {
+        //开启闪光灯
+        self.captureDevice.torchMode = AVCaptureTorchModeOn;
+    }else if ([self.captureDevice isTorchModeSupported:AVCaptureTorchModeOff]) {
+        //关闭闪光灯
+        self.captureDevice.torchMode = AVCaptureTorchModeOff;
+    }
+    [self.captureDevice unlockForConfiguration];
 }
 
 -(void)initCapureSession{
     //创建AVCaptureDevice的视频设备对象
     AVCaptureDevice* videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
     NSError *error = nil;
-  
+    self.captureDevice = videoDevice;
     //创建视频输入端对象
     AVCaptureDeviceInput* input = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&error];
     if (error) {
