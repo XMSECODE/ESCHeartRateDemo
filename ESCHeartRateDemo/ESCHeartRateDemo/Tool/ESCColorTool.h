@@ -12,6 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface ESCColorTool : NSObject
 
++ (double)calculateHValueWithBuffer:(uint8_t *)buffer width:(int)width height:(int)height;
+
 + (double)getHFromR:(double)r g:(double)g b:(double)b;
 
 @end

@@ -10,6 +10,28 @@
 
 @implementation ESCColorTool
 
++ (double)calculateHValueWithBuffer:(uint8_t *)buffer width:(int)width height:(int)height {
+    
+    NSInteger totalR = 0;
+    NSInteger totalG = 0;
+    NSInteger totalB = 0;
+    
+    for (int i = 0; i < height * width; i++) {
+        int b = buffer[i * 4];
+        int g = buffer[i * 4 + 1];
+        int r = buffer[i * 4 + 2];
+        totalR += r;
+        totalG += g;
+        totalB += b;
+    }
+    
+    double averageR = totalR * 1.0 / (width * height);
+    double averageG = totalG * 1.0 / (width * height);
+    double averageB = totalB * 1.0 / (width * height);
+    double H = [ESCColorTool getHFromR:averageR g:averageG b:averageB];
+    return H;
+}
+
 + (double)getHFromR:(double)r g:(double)g b:(double)b {
     
     double max = MAX(r, MAX(g, b));
