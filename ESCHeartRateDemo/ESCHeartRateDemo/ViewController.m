@@ -117,7 +117,7 @@
 }
 // 记录浮点变化的前一次的值
 static float lastValue = 0;
-// 用于判断是否是第一个福点值
+// 用于判断是否是第一个浮点值
 static int   count = 0;
 //使用差分阈值法处理数据
 - (float)differenceThresholdArithmetic:(float)value {
