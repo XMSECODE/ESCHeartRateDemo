@@ -8,59 +8,83 @@
 
 #import "ESCHeartRateView.h"
 
+
+struct ESCValueStruct {
+    double value;
+    struct ESCValueStruct *preStruct;
+    struct ESCValueStruct *nextStruct;
+};
+
+typedef struct ESCValueStruct ESCValueStruct;
+
 @interface ESCHeartRateView ()
 
-@property(nonatomic,assign)double *arr;
+@property(nonatomic,assign)ESCValueStruct *currentValueStruct;
 
-@property(nonatomic,assign)int index;
+@property(nonatomic,assign)void *data;
 
 @end
 
 @implementation ESCHeartRateView
 
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        int dataCount = 1024 * 4;
+        void *data = malloc(sizeof(ESCValueStruct) * dataCount);
+        self.data = data;
+        ESCValueStruct *firstPoint = data;
+        firstPoint->value = 0;
+        ESCValueStruct *lastPoint = firstPoint;
+        
+        for (int i = 1; i < dataCount; i++) {
+            ESCValueStruct *currentValueStruct = (data + sizeof(ESCValueStruct) * i);
+            currentValueStruct->value = 0;
+            lastPoint->nextStruct = currentValueStruct;
+            currentValueStruct->preStruct = lastPoint;
+            lastPoint = currentValueStruct;
+        }
+        
+        lastPoint->nextStruct = firstPoint;
+        firstPoint->preStruct = lastPoint;
+        
+        self.currentValueStruct = data;
+           
+    }
+    return self;
+}
+
+- (void)dealloc {
+    free(self.data);
+}
+
 - (void)drawRect:(CGRect)rect {
     CGFloat height = rect.size.height;
     CGFloat width = rect.size.width;
     int step = 2;
-    if (self.index >= width / step) {
-        [[UIColor greenColor] setStroke];
-        UIBezierPath *path = [UIBezierPath bezierPath];
-        for (int i = self.index - width / step; i < self.index; i++) {
-            CGFloat value = *(_arr + i);
-            CGFloat y = height / 2 - value * height / 2;
-            if (i == (int)(self.index - width / step)) {
-                [path moveToPoint:CGPointMake(0, y)];
-            }else {
-                [path addLineToPoint:CGPointMake((i - (self.index - width / step)) * step, y)];
-            }
-        }
-        path.lineWidth = 1;
-        [path stroke];
-    }else {
-        [[UIColor greenColor] setStroke];
-        UIBezierPath *path = [UIBezierPath bezierPath];
-        for (int i = 0; i < self.index; i++) {
-            CGFloat value = *(_arr + i);
-            CGFloat y = height / 2 - value * height / 2;
-            if (i == 0) {
-                [path moveToPoint:CGPointMake(0, y)];
-            }else {
-                [path addLineToPoint:CGPointMake(i * step, y)];
-            }
-        }
-        path.lineWidth = 1;
-        [path stroke];
-    }
+    [[UIColor greenColor] setStroke];
+    UIBezierPath *path = [UIBezierPath bezierPath];
+    path.lineWidth = 1;
+
+    CGFloat value = self.currentValueStruct->value;
+    CGFloat y = height / 2 - value * height / 2;
+    [path moveToPoint:CGPointMake(width, y)];
+
+    ESCValueStruct *valueStruct = self.currentValueStruct->preStruct;
     
+    for (int i = 1; i < width / step; i++) {
+        CGFloat value = valueStruct->value;
+        CGFloat y = height / 2 - value * height / 2;
+        [path addLineToPoint:CGPointMake(width - i * step, y)];
+        valueStruct = valueStruct->preStruct;
+    }
+    [path stroke];
 }
 
 - (void)addValue:(double)value {
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.arr == nil) {
-            self.arr = malloc(1024 * 1024 * 10);
-        }
-        *(_arr + self.index) = value;
-        self.index++;
+        self.currentValueStruct->nextStruct->value = value;
+        self.currentValueStruct = self.currentValueStruct->nextStruct;
         [self setNeedsDisplay];
     });
 }
